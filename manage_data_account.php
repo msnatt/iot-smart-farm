@@ -1,0 +1,226 @@
+<?php
+  if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+  }
+  if (!isset($_SESSION['role_id']) && basename($_SERVER['PHP_SELF']) !== 'dashboard_view_v3.php' || !in_array($_SESSION['role_id'], array('55','88','99'))) {
+    echo "<script>alert('Sorry, You Are Not Allowed to Access This Page!!');window.location.href='dashboard_view_v3.php';</script>";
+    exit();
+  }
+
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Data account</title>
+    <link rel="stylesheet" href="includes/css/style.css">
+    <style>
+      select {
+        text-align: center;
+        text-align-last: center;
+      }
+    </style>
+</head>
+<body class="bg-background text-foreground">
+<?php
+  //nav bar
+    include_once("nav_bar.php");
+  ?>
+  <?php
+  include_once("includes/fn/pg_connect.php");
+    
+
+    $db = pg_connect( "$host $port $dbname $credentials"  );
+
+      if(!$db) {
+          echo "Error : Unable to open database\n";
+          exit;
+      }
+      $sql_plus = " ";
+      if(!in_array($_SESSION['role_id'], array('88','99'))){
+        $sql_plus = " AND  b.branch_id='".$_SESSION['branch_id']."' ";
+      }
+      $sql_sel_group  = "SELECT a.*,b.branch_id,b.branch_name
+	                        FROM user_account a left join branch_info b on a.branch_id = b.branch_id WHERE a.role_id NOT in('88','99') ".$sql_plus." ORDER BY a.id ASC,a.username ASC;";
+      $rs_sel_group   = select($sql_sel_group,$db);
+      
+
+      ?>    
+
+    <section class="bg-card text-card-foreground py-16">
+      <div class="flex flex-col">
+        
+        <div class="py-4 w-full">
+        <table class="table-auto w-4/4 m-auto border border-collapse  border-slate-500 text-center">
+          <thead>
+            <tr>
+              <th class="border border-slate-600 py-2 px-4">No.</th>
+              <th class="border border-slate-600 py-2 px-4">username</th>
+              <th class="border border-slate-600 py-2 px-4">Name</th>
+              <th class="border border-slate-600 py-2 px-4">RoleName</th>
+              <th class="border border-slate-600 py-2 px-4">Branch</th>
+              <th class="border border-slate-600 py-2 px-4">Status</th>
+              <th class="border border-slate-600 py-2 px-4">Remove</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php
+              if(count($rs_sel_group)>0){
+                $arrRole = array();
+                $sql = "SELECT rule_name, role_num	FROM user_role ORDER BY id asc;";
+                $rsRole   = select($sql,$db);
+                if(count($rsRole)>0){
+                  for($i=0;$i<count($rsRole);$i++){
+                    $arrRole[$rsRole[$i]->role_num] = $rsRole[$i]->rule_name;
+                  }
+                  
+                }
+                for($i=0;$i<count($rs_sel_group);$i++){
+
+               
+            ?>
+            <tr id="tr_list_<?php echo $rs_sel_group[$i]->id;?>">
+              <td class="border border-slate-600 py-2 px-4"><?php echo ($i+1);?></td>
+              <td class="border border-slate-600 py-2 px-4"><?php echo $rs_sel_group[$i]->username;?></td>
+              <td class="border border-slate-600 py-2 px-4"><?php echo $rs_sel_group[$i]->name;?></td>
+              <td class="border border-slate-600 py-2 px-4"><?php echo $arrRole[$rs_sel_group[$i]->role_id];?></td>
+              <td class="border border-slate-600 py-2 px-4">
+                <?php 
+                if(in_array($_SESSION['role_id'], array('88','99'))){
+                  $sql = "SELECT branch_id, branch_name, createtime, updatetime, status	FROM branch_info ORDER BY branch_id ASC;";
+                  $rs_branch   = select($sql,$db);
+                  ?>
+                  <select id="sel_group_<?php echo $rs_sel_group[$i]->id;?>" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 w-44 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" onchange="sel_group_change('<?php echo $rs_sel_group[$i]->id;?>');">
+                    <?php
+                      if(count($rs_branch)>0){
+                        for($g=0;$g<count($rs_branch);$g++){
+                          if($rs_branch[$g]->branch_id==$rs_sel_group[$i]->branch_id){$selected = "selected";}else{$selected = "";}
+                          echo '<option value="'.$rs_branch[$g]->branch_id.'" '.$selected.'>'.$rs_branch[$g]->branch_name.'</option>';
+                        }
+                      }
+                    ?>
+                </select>
+                  <?php
+                }else{
+                  echo $rs_sel_group[$i]->branch_name;
+                }
+                
+                ?>
+              </td>
+              <td class="border border-slate-600 py-2 px-4">
+                <label class="inline-flex items-center cursor-pointer">
+                     <input type="checkbox" value=""  id="status_group_<?php echo $rs_sel_group[$i]->id;?>" class="sr-only peer" <?php if($rs_sel_group[$i]->status=='1'){echo "checked";} ?> onclick="sent_sw_change('<?php echo $rs_sel_group[$i]->id;?>')" /><div class="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                </label>
+              </td>
+              
+              <td class="border border-slate-600">
+                <button
+                  class="relative align-middle select-none font-sans font-medium text-center uppercase transition-all disabled:opacity-50 disabled:shadow-none disabled:pointer-events-none w-10 max-w-[32px] h-10 max-h-[32px] rounded-lg text-xs bg-red-500 text-white shadow-md shadow-red-500/20 hover:shadow-lg hover:shadow-red-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none"
+                  type="button"
+                  onclick="confirm_del_group('<?php echo $rs_sel_group[$i]->id;?>');"
+                >❌</button></td>
+            </tr>
+            <?php
+               }
+              }else{
+                echo '<td class="border border-slate-600 py-2 px-4" colspan="6">No data.</td>';
+              }
+            ?>
+          </tbody>
+        </table>
+        </div>
+      </div>
+    </section>
+
+  <?php    pg_close($db); ?>
+
+  <script>
+    function confirm_del_group(elm_index){
+      if(confirm("ต้องการลบ User นี้?") == true){
+        var dataString = 'data_group_manage_type=1'+'&group_id='+elm_index; //ค่าที่จะส่งไปพร้อมตัวแปร
+          $.ajax ({
+              type: "POST", //METHOD "GET","POST"
+              url: "ajax_manage_data_account_process.php", //File ที่ส่งค่าไปหา
+              data: dataString,
+              //cache: false,
+              success: function(data) {
+              // alert(data);
+              var jsonData = JSON.parse(data);
+              if(jsonData.ret=='101'){
+                // alert(jsonData.msg);
+                $("#tr_list_"+elm_index).hide();
+                console.log(jsonData.msg);
+              }
+              else{
+                alert(jsonData.msg+"1");
+              }
+            } 
+          });
+         
+        
+      }else{
+        console.log("0");
+      }
+    }
+    function sent_sw_change(elm_index){ //page1_sql_type = 2
+      //Update "monitor" id = elm_index,config_value_2 = isChecked 
+      //|insert "volte_censor" location = group, name = device, DATA02
+      var sent_sw_isChecked     = $("#status_group_"+elm_index).is(":checked");
+      var isChecked = 0;
+      if(sent_sw_isChecked){
+        isChecked = 1;
+      }
+      // console.log(sent_sw_isChecked);
+      var dataString = 'data_group_manage_type=2'+'&group_id='+elm_index+'&isChecked='+ isChecked; //ค่าที่จะส่งไปพร้อมตัวแปร
+          $.ajax ({
+              type: "POST", //METHOD "GET","POST"
+              url: "ajax_manage_data_account_process.php", //File ที่ส่งค่าไปหา
+              data: dataString,
+              //cache: false,
+              success: function(data) {
+              // alert(data);
+              var jsonData = JSON.parse(data);
+              if(jsonData.ret=='101'){
+                // alert(jsonData.msg);
+                console.log(jsonData.msg);
+              }
+              else{
+                alert(jsonData.msg+"2");
+                // console.log(jsonData.msg);
+              }
+            } 
+          });
+
+    }
+    
+    function sel_group_change(elm_index){ 
+      //page1_sql_type = 4
+      //Update "monitor" id = elm_index,group_id = sel_group
+      var sel_group         = $("#sel_group_"+elm_index).find(":selected").val();
+      if(sel_group=='-'){
+        return false;
+      }
+ 
+      var dataString = 'data_group_manage_type=3'+'&user_id='+elm_index+'&branch_id='+ sel_group; //ค่าที่จะส่งไปพร้อมตัวแปร
+          $.ajax ({
+              type: "POST", //METHOD "GET","POST"
+              url: "ajax_manage_data_account_process.php", //File ที่ส่งค่าไปหา
+              data: dataString,
+              //cache: false,
+              success: function(data) {
+              // alert(data);
+              var jsonData = JSON.parse(data);
+              if(jsonData.ret=='101'){
+                // alert(jsonData.msg);
+                console.log(jsonData.msg);
+              }
+              else{
+                alert(jsonData.msg+"4");
+              }
+            } 
+          });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+@start "" /b "C:\Program Files\Internet Explorer\iexplore.exe" https://iot-demo.tikky.xyz/api_get_data_notify.php
